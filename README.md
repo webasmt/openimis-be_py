@@ -34,6 +34,7 @@ In case of troubles, please consult/contact our service desk via our [ticketing 
     requirements.txt`. For development workstations, one can use `pip
     install -r dev-requirements.txt` instead for more modules.
   * generate the openIMIS modules dependencies file (from openimis.json config): `python modules-requirements.py openimis.json > modules-requirements.txt`
+  * if you previously installed openIMIS on another version, it seems safe to uninstall all previous modules-requirement to be sure it match current version `pip uninstall -r modules-requirements.txt`
   * install openIMIS current modules: `pip install -r modules-requirements.txt`
   * configure the database connection (see section here below)
 * start openIMIS from within `openimis-be_py/openIMIS`: `python manage.py runserver`
@@ -80,6 +81,15 @@ At this stage, you may (depends on the database you connect to) need to:
   * launch unit tests, with the 'keep database' option: `python
     manage.py test --keep claim`
 
+### To get profiler report (DEBUG mode only)
+In request query include additional parameters:  
+* `prof=True` - get profiler report instead of standard response for given endpoint
+* `download=True` - additionally changes report formatting to one acceptable by `snakeviz` 
+
+#### Example:   
+`http://localhost:8000/api/graphql?prof=True&download=True`  
+creates profiler report for execution of query/mutation defined in request's POST body.
+
 ### To publish (in PyPI) the modified (or new) module
 * adapt the `openimis-be-mymodule_py/setup.py` to (at least) bump version number (e.g. 1.2.3)
 * commit your changes to the git repo and merge into master
@@ -118,9 +128,9 @@ When release candidate is accepted:
 	* from tarball: `https://github.com/openimis/openimis-be_py/archive/v1.1.0.tar.gz`
 * (required only once)`python -m venv ./venv`: create the python venv
 * `./venv/Script/activate[.sh/.ps1]`: Activate the venv
-* `pyhon modules-list.py openimis.json > module-list.txt`: list the module to install
+* `python modules-list.py openimis.json > module-list.txt`: list the module to install
 * `python -m pip uninstall -r module-list.txt`: uninstall the previously installed module
-* `pyhon modules-requirements.py openimis.json > modules-requirements.txt`: list the source of the module to install
+* `python modules-requirements.py openimis.json > modules-requirements.txt`: list the source of the module to install
 * `python -m pip install -r modules-requirements.txt`: Install the modules
 * Set the different required environement variables
 	* see database configuration
@@ -155,3 +165,161 @@ Notes:
   `sql_server.pyodbc`. If you need to use another one, use the `DB_ENGINE` entry in the `.env` file
 * default 'options' in openIMIS are `{'driver': 'ODBC Driver 17 for SQL Server','unicode_results': True}`
   If you need to provide other options, use the `DB_OPTIONS` entry in the `.env` file (be complete: the new json string will entirely replace the default one)
+
+
+
+
+## Developer tools
+
+
+### To create backend module skeleton in single command
+* from `/openimis-be_py/openIMIS`:
+  * run this command: `python manage.py create_openimis_module <module_name> <author> <author_email> [--template <template>]`
+  * `<author>` and `<author_email>` params are required because they are necessary during creating `setup.py` file
+  * `--template` param allow to specify a template adding additional files, depending on module type provided:
+    * `business` template provides the module with `services.py` file containing example service, tests for that service, and 
+    `apps.py` containing module config.
+    * `calculation` template is an alias to `create_calcrule_module` command explained in `To create calculation backend
+    module skeleton in single command` section
+  * this command executes every steps described in "To create a new openIMIS module (e.g. `openimis-be-mymodule`)"
+  * file templates for setup, readme, license, manifest and urls can be found in `developer_tools/skeletons` directory
+  * files to be added through that command based on provided templates:
+     * setup.py
+     * README.md
+     * LICENSE.md
+     * MANIFEST.md
+     * <module_name>/urls.py
+  * as the option could be added `--github`. This allows to add gitignore file and workflows files to execute CI on every pull request (this option will execute this command `python manage.py add_github_files_to_module <module_name>`) 
+  * example with using `--github` option: `python manage.py create_openimis_module <module_name> <author> <author_email> --github`
+* from here on, your local openIMIS has a new module called `openimis-be-<module_name>_py`, directly loaded from your directory by using single command.
+
+
+### To add GitHub files like workflows, gitignore etc
+* from `/openimis-be_py/openIMIS`:
+  * run this command: `python manage.py add_github_files_to_module <module_name>`
+  * this command allows to add to the existing module github files like gitignore, workflows etc
+  * files to be added through that command based on provided templates:
+     * openmis-module-test.yml
+     * python-publish.yml
+     * .gitignore
+
+
+### To fetch a module and install it from local directory
+* first install all modules as in "Developers setup"
+* from `/openimis-be_py/openIMIS`:
+  * run this command: `python manage.py install_module_locally <module_name> [--url <url>] [--branch <branch>] [--path <path>]`.
+  This command will execute all steps required steps to first uninstall currently installed version of the module, clone
+  the module repository and install it as an editable library.
+  * The `--url` parameter allows you to specify the git repository url (By default it will use openimis.json)
+  * The `--branch` parameter allows to specify the branch that will be cloned, develop by default
+  * The `--path` allows you to specify the directory the repository will be cloned to. By default, the repository will be saved
+  next to `openimis-be_py` directory.
+  
+
+### To fetch all modules and install them from local directories
+* first install all modules as in "Developers setup"
+* from `/openimis-be_py/openIMIS`:
+  * run this command: `python manage.py install_module_locally all`. This command will execute all steps required steps 
+  to fetch all modules present in `openimis.json` from the git repositories and install them as editable libraries.
+
+
+### To install modules from PyPI
+* first install all modules as in "Developers setup"
+* from `/openimis-be_py/openIMIS`:
+  * run this command: `python manage.py install_module_pypi <module_name> [--target-version <version>] [--library-name <library_name>]
+  [--check-only]`. This command will execute all steps required steps to first uninstall currently installed version of the module, check
+  the newest version of the library and install it from PyPI.
+  * The `--target-version` parameter allows you to specify the version that will be used to install the module
+  * The `--library-name` parameter allows you to override the library name. By default, the library name is derived from
+  module name, following this scheme: `openimis-be-<module_name>`
+  * The `--check-only` flag allows to check the newest version without installing the library or modifying openimis.json
+  file. This parameter can be also used to check availability of a specific version when used with `--target-version`
+
+
+### To install all modules from PyPI
+* first install all modules as in "Developers setup"
+* from `/openimis-be_py/openIMIS`:
+  * run this command: `python manage.py install_module_locally all`. This command will execute all steps required steps 
+  to install most recent versions of all modules present in `openimis.json` from PyPI.
+
+### To create calculation backend module skeleton in single command
+* from `/openimis-be_py/openIMIS`:
+  * run this command: `python manage.py create_calcrule_module <module_name> <author> <author_email>`
+  * `<author>` and `<author_email>` params are required because they are necessary during creating `setup.py` file
+  * file templates for apps.py, config.py and calculation_rule.py can be found in `developer_tools/skeletons` directory
+  * another files necessary to launch module such as setup.py etc are also added by this command.  
+  * files to be added through that command based on provided templates:
+     * setup.py
+     * README.md
+     * LICENSE.md
+     * MANIFEST.md
+     * <module_name>/urls.py
+     * <module_name>/apps.py
+     * <module_name>/config.py
+     * <module_name>/calculation_rule.py
+  * as the option could be added `--github`. This allows to add gitignore file and workflows files so as to execute CI on every pull request (this option will execute this command `python manage.py add_github_files_to_module <module_name>`) 
+  * example with using `--github` option: `python manage.py create_calcrule_module <module_name> <author> <author_email> --github`
+* from here on, your local openIMIS has a new module called `openimis-be-calcrule-<module_name>_py`, directly loaded from your directory by using single command.
+
+
+### To create release branches for all backend/frontend modules presented in openimis.json
+* from `/openimis-be_py/openIMIS`:
+  * run this command: `python manage.py create_release_branch <version> <from_branch: by default 'develop'>`. This command will execute all steps required 
+  to create release branches of all modules present in `openimis.json` (frontend json and backend json).
+
+
+### To extract all translations from frontend modules
+* from `/openimis-be_py/openIMIS`:
+  * run this command: `python manage.py extract_translations`. This command will execute all steps required 
+  to extract frontend translations of all modules present in `openimis.json`. 
+  * those translations will be copied into 'extracted_translations_fe' folder in assembly backend module
+
+
+
+## Handling errors while running openIMIS app - the most common ones
+
+### Handling error with `wheel` package
+If there are some problems with 'wheel package' after executing `pip install -r requirements.txt` (for example `error: invalid command 'bdist_wheel'`) you may need to execute two commands:
+* `pip install wheel`
+* `python setup.py bdist_wheel`
+* optionally `pip uninstall -r requirements.txt` to clean requirements and reinstall them again
+
+If those commands doesn't help you need to try with this sort of commands: 
+* `apt-get update`
+* `ACCEPT_EULA=Y apt-get install -y msodbcsql17 mssql-tools` 
+* `apt-get install -y -f python3-dev unixodbc-dev`
+* `pip install --upgrade pip`
+* `pip install mssql-cli`
+
+After executing those commands you can run `pip install -r requirements.txt` again and there shouldn't be any issues with `wheel` package.
+
+
+### Handling error with `connection_is_mariadb` after executing `python manage.py runserver`
+Another error that relates to this issue with `wheel` is such one:
+* `ImportError: cannot import name 'connection_is_mariadb' from 'django_mysql.utils'`
+This error indicates that the db client is not set up properly. But it realized that it is related to the fact that the wheel package is not working (see `### Handling error with wheel package` section).
+Therefore you need to follows steps described in this above section. 
+
+
+### Using wrong build for database docker
+Using wrong version of db docker could cause several issues both on backend and frontend for example:
+* problems with creating database schema (backend)
+* problems with filling demo dataset into database while running demo database script (backend)
+* error while running frontend (web console `Uncaught TypeError: Cannot read properties of null (reading 'health_facility_id')`) (frontend)
+
+So as to avoid those issues it is recommended to use such command to run db docker (NOTE: DO NOT USE for a production environment!):
+```
+docker build \
+  --build-arg ACCEPT_EULA=Y \
+  --build-arg SA_PASSWORD=<your secret password> \
+  . \
+  -t openimis-db
+```
+This commands will build with the latest version of database. You can specify particular version of database by adding optional parameter:
+* `SQL_SCRIPT_URL=<url to the sql script to create the database>`
+
+You can find more informations about seeting up db docker [here](https://github.com/openimis/openimis-db_dkr/tree/develop).
+
+### How to report another issues? 
+If you face another issues not described in that section you could use our [ticketing site](https://openimis.atlassian.net/servicedesk/customer/portal/1). 
+Here you can report any bugs/problems you faced during setting up openIMIS app. 
